@@ -29,6 +29,14 @@ Install the toolkit through conda instead:
 conda create -y -n cuda129 -c nvidia/label/cuda-12.9.1 cuda-toolkit
 ```
 
+⚠️ **The `cuda-toolkit` meta-package can fail**, because it pulls in a broken `gds-tools`. If that happens, install the minimal set that's actually needed to build CUDA kernels, adding the `conda-forge` channel:
+
+```bash
+conda create -y -n cuda129 -c nvidia/label/cuda-12.9.1 -c conda-forge \
+  cuda-nvcc cuda-cudart-dev cuda-cccl cuda-nvrtc-dev \
+  libcublas-dev libcusparse-dev cuda-driver-dev
+```
+
 **Why 12.9 specifically:** glibc 2.41 in 26.04 conflicts with the `math_functions.h` header of older CUDA releases —
 
 ```
@@ -38,6 +46,8 @@ error: exception specification is incompatible ... cospi/sinpi/rsqrt
 That was fixed in CUDA ≥ 12.8. And you must stay on 12.x because **Volta support was removed in CUDA 13.0** — 12.9 is the newest release that still compiles `sm_70`.
 
 ## 4. The `math_functions.h` patch (needed even on 12.9)
+
+> **This is a 26.04-only problem.** On Ubuntu 24.04 (glibc 2.39) the patch is unnecessary — skip this section entirely. If you have the choice, 24.04 is the calmer host for `sm_70`/`sm_75` work.
 
 Even CUDA 12.9 does not fully fix the glibc 2.41 clash, so nvcc still fails. Patch the header — this is the single most time-consuming thing to rediscover:
 

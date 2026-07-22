@@ -72,14 +72,33 @@ Result is an OpenAI-compatible API on `:8000/v1`. Any client that speaks "OpenAI
 
 ### Qwen3.5 / Qwen3.6 MoE models (GDN linear attention)
 
-Architectures like `qwen3_5_moe` (35B-A3B, 122B-A10B) need extra care on Volta:
+Architectures like `qwen3_5_moe` / `Qwen3_5MoeForConditionalGeneration` (35B-A3B, 122B-A10B) need extra care on Volta. Exact working combination:
 
-- Use **1Cat-vLLM 1.2.0+** — 1.1.0 does not load the MoE experts.
-- **`--disable-custom-all-reduce` is mandatory**, otherwise it crashes during CUDA-graph capture with `custom_all_reduce.cuh 'invalid argument'`.
-- Requires torch 2.10.0+cu128 and `FLASH_ATTN_V100`.
-- Do **not** pass `--swap-space` (the argument is rejected by this build).
+| Component | Required version | What happens otherwise |
+|---|---|---|
+| 1Cat-vLLM | **1.2.0+** | 1.1.0 fails to load MoE experts: `ValueError: weights not initialized: ...experts.w13_weight`. 1.2.0 added the Qwen3.5/3.6 MoE + GDN loader for `sm_70` |
+| torch | **2.10.0+cu128** | 2.9.1 gives `undefined symbol` against the 1.2.0 wheel |
+| `--disable-custom-all-reduce` | **mandatory** | Model loads, then crashes capturing the full CUDA graph: `custom_all_reduce.cuh:578 'invalid argument'` |
+| `--swap-space` | **must be omitted** | `unrecognized arguments: --swap-space` in 1.2.0 |
 
-Verified on 8× V100 (2026-07). Measured 69.8 tok/s single-stream on 4× V100.
+```bash
+pip install --no-deps 1cat_vllm-1.2.0-cp312-*.whl
+pip install torch==2.10.0+cu128 torchaudio==2.10.0+cu128 torchvision==0.25.0+cu128 \
+  --index-url https://download.pytorch.org/whl/cu128
+# plus the vllm-1.2.0.dist-info/METADATA shim described above
+
+VLLM_ATTENTION_BACKEND=FLASH_ATTN_V100 VLLM_WORKER_MULTIPROC_METHOD=spawn HF_HUB_OFFLINE=1 \
+vllm serve <model-path> --tensor-parallel-size 4 --dtype float16 \
+  --disable-custom-all-reduce --max-model-len 8192 --gpu-memory-utilization 0.90
+```
+
+Verified on 8× V100 (2026-07): GDN decode runs on `sm_70`, full CUDA graphs capture, ~30.5 GB per card. Measured **69.8 tok/s** single-stream on 4× V100.
+
+Keep the 1.1.0 wheels around if you also serve AWQ-MoE models through this env — upgrading to 1.2.0 changes that path and it's worth re-verifying rather than assuming.
+
+### Choosing a parallelism layout on 8-card boards
+
+An 8× V100 SXM2 board without NVSwitch has **two NV2 quads** (GPU0–3 meshed, GPU4–7 meshed, PCIe between them). `TP=4` inside a quad runs on full NVLink; `TP=8` crosses PCIe on every all-reduce. Unless the model needs more than 128 GB, two independent TP=4 instances usually beat one TP=8. Verify with `nvidia-smi topo -m` before deciding.
 
 ---
 

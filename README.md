@@ -32,19 +32,24 @@ Most of the modern inference stack quietly assumes `sm_80+`. On V100 and 2080 Ti
 
 | Hardware | Model | Config | Speed |
 |---|---|---|---|
-| 4× V100 32GB | DeepSeek-R1-70B-AWQ | 1Cat fork, TP=4 | **40 tok/s** single · 92 @16 parallel |
-| 4× V100 32GB | Qwen3.5-122B-A10B-AWQ | 1Cat fork 1.2.0, TP=4 | **69.8 tok/s** single |
+| 4× V100 32GB | Qwen3.5-122B-A10B-AWQ | 1Cat fork 1.2.0, TP=4 | **67.4 tok/s** single · 1059 @64 · **prefill 3767** |
+| 4× V100 32GB | Qwen3.6-35B-A3B | 1Cat fork 1.2.0, TP=4 | **69.8 tok/s** single · 841 @64 |
+| 4× V100 32GB | DeepSeek-R1-70B-AWQ | 1Cat fork, TP=4 | 40 tok/s single · 92 @16 |
 | 4× 2080 Ti 22GB | Qwen3.5-122B-A10B-AWQ | weicj fork, TP=4 | **52 tok/s** single |
 | 4× 2080 Ti 22GB | Qwen3.6-27B-AWQ ×2 | 2 instances TP=2 + MTP K=3 | **152 tok/s** aggregate |
+| 4× A100 | Qwen3.6-35B-A3B | upstream | 95 tok/s single · **1826 @64** |
 | 2× RTX 4090 48GB | Qwen3.6-35B-A3B | upstream | **149 tok/s** single |
 
-Full tables, including the failures, in [docs/benchmarks.md](docs/benchmarks.md).
+A 122B MoE model serving 64 concurrent users at 1059 tok/s on 2018 hardware, drawing 837 W and peaking at 47 °C, is the headline result here.
+
+Full tables — concurrency curves, power draw, A100-vs-V100 across load levels, and the failures — in [docs/benchmarks.md](docs/benchmarks.md).
 
 ## Three lessons that save the most time
 
 1. **Check your arch is actually in the wheel.** `python -c "import torch; print(torch.cuda.get_arch_list())"` must contain `sm_70`. Torch built against cu128/cu130 dropped Volta — you want `torch 2.5.1+cu124`, or a fork wheel that rebuilt it.
 2. **A dense 70B cannot give you 60 tok/s on V100.** 900 GB/s × 4 ÷ 40 GB ≈ 90 tok/s is the hard memory-bandwidth ceiling. Benchmarks claiming 60 tok/s are MoE models (~3B active parameters/token). Memory bandwidth decides inference speed — NVLink matters far less than people assume.
 3. **Every GPU generation needs its own fork.** Mixing them up produces crashes that look like model bugs. Turing → weicj, Volta → 1Cat, Ada → upstream.
+4. **Check topology before choosing parallelism.** Multi-GPU boards are rarely fully meshed: 8× V100 without NVSwitch is *two* NV2 quads, and 4× 2080 Ti is NVLinked in pairs. Two smaller instances on full NVLink routinely beat one big instance that has to all-reduce over PCIe — measured 152 vs ~90 tok/s aggregate in one such case. Run `nvidia-smi topo -m` first.
 
 ## Contributing
 

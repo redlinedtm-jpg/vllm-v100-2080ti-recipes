@@ -22,7 +22,9 @@ Official recipes ([vLLM](https://recipes.vllm.ai/zai-org/GLM-5.2), [SGLang](http
 
 ## The one path that does work: GGUF via llama.cpp
 
-llama.cpp runs it because **it never executes DSA at all** — it loads the GLM DSA indexer tensors as optional and computes dense DeepSeek-V2-style MLA instead (convert PR #19460, loader PR #24770; the actual DSA runtime is draft #21149 and unmerged).
+llama.cpp runs it because **it never executes DSA at all** — it loads the GLM DSA indexer tensors as optional and computes dense DeepSeek-V2-style MLA instead (convert PR #19460, loader PR #24770; the sparse DSA runtime itself started as draft #21149).
+
+> **Update (July 2026):** GLM-DSA support has been landing in mainline — a current build contains `src/models/glm-dsa.cpp`, `llama-kv-cache-dsa.cpp` and the `LLM_ARCH_GLM_DSA` architecture, and compiles fine for `sm_70` with `-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=70`. We have the engine built and waiting; we have **no throughput measurement yet**, because Q4_K_XL needs roughly 384 GB of VRAM and 8× V100 (256 GB) only fits Q2_K_XL. If you measure this on a large Volta fleet, please open an issue — that data point doesn't exist publicly as far as we can tell.
 
 `0xSero/GLM-5.2-REAP-504B-GGUF` **Q4_K_XL (~325 GB)** loads on mainline llama.cpp without patches. Smaller: Q3_K_XL 259 GB, Q2_K_XL 111 GB. The indexer is approximated (duplicated from neighbouring layers, not bit-exact).
 
