@@ -1,0 +1,6 @@
+# Internal working notes — must never be public.
+# They describe why this repository exists in project terms and would
+# undermine the only thing that makes it useful: being a straight
+# engineering write-up.
+AGENTS.md
+CLAUDE.md

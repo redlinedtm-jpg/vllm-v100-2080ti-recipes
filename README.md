@@ -28,6 +28,14 @@ Most of the modern inference stack quietly assumes `sm_80+`. On V100 and 2080 Ti
 - **[GLM-5.2 on Volta: why it cannot work](docs/glm-5.2-on-volta.md)** — research writeup on DSA sparse attention and the only remaining path.
 - **[Troubleshooting](docs/troubleshooting.md)** — garbled `Ġ`/`Ċ` output, the Ollama context trap that costs you 7× speed, and more.
 
+### Hardware
+
+The software half is only half the problem. These cover the boxes the models actually run on:
+
+- **[NVLink on V100 SXM2 carrier boards](docs/nvlink-sxm2.md)** — what a healthy 24-link mesh looks like, why a dead link is usually a loose screw rather than a dead GPU, and why error counters point at the wrong card.
+- **[nvidia-smi finds no devices on V100](docs/volta-driver-trap.md)** — the open kernel module does not support Volta. Four GPUs that look dead, the `BAR0 is 0M` signature, and the exact sequence that brings them back.
+- **[Acceptance checklist for used V100 SXM2 kits](docs/buying-used-v100.md)** — serials, ECC, NVLink, load test and the Xid codes that decide whether to accept or reject a kit.
+
 ## Headline numbers (our measurements)
 
 | Hardware | Model | Config | Speed |
@@ -49,7 +57,8 @@ Full tables — concurrency curves, power draw, A100-vs-V100 across load levels,
 1. **Check your arch is actually in the wheel.** `python -c "import torch; print(torch.cuda.get_arch_list())"` must contain `sm_70`. Torch built against cu128/cu130 dropped Volta — you want `torch 2.5.1+cu124`, or a fork wheel that rebuilt it.
 2. **A dense 70B cannot give you 60 tok/s on V100.** 900 GB/s × 4 ÷ 40 GB ≈ 90 tok/s is the hard memory-bandwidth ceiling. Benchmarks claiming 60 tok/s are MoE models (~3B active parameters/token). Memory bandwidth decides inference speed — NVLink matters far less than people assume.
 3. **Every GPU generation needs its own fork.** Mixing them up produces crashes that look like model bugs. Turing → weicj, Volta → 1Cat, Ada → upstream.
-4. **Check topology before choosing parallelism.** Multi-GPU boards are rarely fully meshed: 8× V100 without NVSwitch is *two* NV2 quads, and 4× 2080 Ti is NVLinked in pairs. Two smaller instances on full NVLink routinely beat one big instance that has to all-reduce over PCIe — measured 152 vs ~90 tok/s aggregate in one such case. Run `nvidia-smi topo -m` first.
+4. **Most "dead" V100s are not dead.** Two failure modes dominate, and neither is the silicon: an open-flavour kernel driver that does not support Volta at all (`BAR0 is 0M`, every GPU failing identically), and NVLink links that will not train because a module retention screw is loose. Both look catastrophic and both are reversible — see the hardware guides above.
+5. **Check topology before choosing parallelism.** Multi-GPU boards are rarely fully meshed: 8× V100 without NVSwitch is *two* NV2 quads, and 4× 2080 Ti is NVLinked in pairs. Two smaller instances on full NVLink routinely beat one big instance that has to all-reduce over PCIe — measured 152 vs ~90 tok/s aggregate in one such case. Run `nvidia-smi topo -m` first.
 
 ## Contributing
 
