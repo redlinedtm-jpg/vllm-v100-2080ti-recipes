@@ -35,6 +35,8 @@ The software half is only half the problem. These cover the boxes the models act
 - **[NVLink on V100 SXM2 carrier boards](docs/nvlink-sxm2.md)** — what a healthy 24-link mesh looks like, why a dead link is usually a loose screw rather than a dead GPU, and why error counters point at the wrong card.
 - **[nvidia-smi finds no devices on V100](docs/volta-driver-trap.md)** — the open kernel module does not support Volta. Four GPUs that look dead, the `BAR0 is 0M` signature, and the exact sequence that brings them back.
 - **[Acceptance checklist for used V100 SXM2 kits](docs/buying-used-v100.md)** — serials, ECC, NVLink, load test and the Xid codes that decide whether to accept or reject a kit.
+- **[Cooling passive Tesla cards](docs/cooling-passive-teslas.md)** — what healthy sustained load looks like, the memory sensor everyone ignores, the 90 °C reading that is not a temperature, and why the spread between cards is the best diagnostic you have.
+- **[CMP 170HX: what it actually is, measured](docs/cmp-170hx.md)** — the only GA100 mining card, unlocked and benchmarked. Tensor cores are **not** disabled (164 TFLOPS FP16 measured), the memory is real, and here is how to tell one from an A100 before you pay for it.
 
 ## Headline numbers (our measurements)
 
